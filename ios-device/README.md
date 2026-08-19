@@ -10,8 +10,12 @@
 ## ⚡ التشغيل السريع (ويندوز) — أسهل طريقة
 
 1. **ثبّت المتطلبات على الكمبيوتر مرة واحدة:**
-   - **Python 3**: من <https://www.python.org/downloads/> — وعند التثبيت
+   - **Python 3.12** (وليس 3.14): من
+     <https://www.python.org/downloads/release/python-3128/> — وعند التثبيت
      ✅ ضع علامة على **"Add python.exe to PATH"**.
+     > ⚠️ **مهم:** Python 3.14 (الأحدث) لا يملك حزمًا جاهزة بعد، فيفشل التثبيت
+     > بخطأ "Microsoft Visual C++ 14.0 required". استخدم **3.12**. المشغّل
+     > `wer9loc.bat` يختار 3.12 تلقائيًا إن كان مثبّتًا.
    - **iTunes** (أو Apple Mobile Device Support) من موقع Apple — ليتعرّف
      ويندوز على الآيفون.
 2. **وصّل الآيفون** بالكابل، افتح قفله، واضغط **"Trust / وثوق"** على الجهاز.
@@ -97,4 +101,7 @@ tunnel                                     # (iOS 17+) تشغيل النفق، �
 - **الموقع رجع للحقيقي فجأة:** توقفت الأداة/النفق أو فُصل الكابل — استخدم
   الخيار الذي يبقيه مثبتًا وابقِ النافذة/الكابل موصولًا.
 - **"pymobiledevice3 not found":** أعد تشغيل `wer9loc.bat` (يعيد التثبيت)،
-  أو ثبّت يدويًا: `pip install -r requirements.txt`.
+  أو ثبّت يدويًا: `pip install --prefer-binary -r requirements.txt`.
+- **"Microsoft Visual C++ 14.0 or greater is required" / Failed to build
+  wheel (lzfse, pylzss):** Python لديك جديد جدًا (3.14) ولا توجد حزم جاهزة له.
+  الحل: ثبّت **Python 3.12**، احذف مجلد `.venv`، ثم شغّل `wer9loc.bat` مجددًا.

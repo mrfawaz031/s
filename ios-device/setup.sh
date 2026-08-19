@@ -12,7 +12,7 @@ echo "• Creating virtual environment (.venv)…"
 python3 -m venv "$HERE/.venv"
 echo "• Installing dependencies…"
 "$HERE/.venv/bin/pip" install --upgrade pip >/dev/null
-"$HERE/.venv/bin/pip" install -r "$HERE/requirements.txt"
+"$HERE/.venv/bin/pip" install --prefer-binary -r "$HERE/requirements.txt"
 
 echo
 echo "✓ Done. Use it with:"
