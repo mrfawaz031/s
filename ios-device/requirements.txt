@@ -1,0 +1,3 @@
+# wer9loc — device-wide iOS location controller
+# Drives Apple's developer location-simulation service.
+pymobiledevice3>=4.0
