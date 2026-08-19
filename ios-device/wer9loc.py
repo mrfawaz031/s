@@ -201,6 +201,52 @@ def make_gpx(start, end, speed_ms):
 
 
 # ---------------------------------------------------------------------------
+# Simulate-location command builders (shared by all commands)
+# ---------------------------------------------------------------------------
+
+def sim_set_cmd(udid, version, rsd, lat, lng):
+    return pmd_cmd() + ["developer", "simulate-location", "set"] + \
+        tunnel_args(udid, version, rsd) + ["--", str(lat), str(lng)]
+
+
+def sim_clear_cmd(udid, version, rsd):
+    return pmd_cmd() + ["developer", "simulate-location", "clear"] + \
+        tunnel_args(udid, version, rsd)
+
+
+def sim_play_cmd(udid, version, rsd, gpx_path):
+    return pmd_cmd() + ["developer", "simulate-location", "play"] + \
+        tunnel_args(udid, version, rsd) + [gpx_path]
+
+
+def hold_loop(udid, version, rsd, lat, lng, interval):
+    """Pin a location, re-asserting every `interval` s until Ctrl+C, then clear."""
+    set_cmd = sim_set_cmd(udid, version, rsd, lat, lng)
+    clr_cmd = sim_clear_cmd(udid, version, rsd)
+
+    stop = {"flag": False}
+    def _sig(*_):
+        stop["flag"] = True
+    signal.signal(signal.SIGINT, _sig)
+    signal.signal(signal.SIGTERM, _sig)
+
+    print("• Pinning location -> %.6f, %.6f" % (lat, lng))
+    print("  Keep this window OPEN. Press Ctrl+C to stop and restore real GPS.")
+    interval = max(5, int(interval))
+    try:
+        while not stop["flag"]:
+            run(set_cmd, check=False)
+            for _ in range(interval):
+                if stop["flag"]:
+                    break
+                time.sleep(1)
+    finally:
+        print("\n• Restoring real location…")
+        run(clr_cmd, check=False)
+        print("✓ Cleared.")
+
+
+# ---------------------------------------------------------------------------
 # Commands
 # ---------------------------------------------------------------------------
 
@@ -229,10 +275,8 @@ def cmd_set(args):
     udid, version = dev
     lat, lng = resolve_coords(args)
     ensure_developer_ready(udid, version)
-    extra = tunnel_args(udid, version, args.rsd)
-    cmd = pmd_cmd() + ["developer", "simulate-location", "set"] + extra + ["--", str(lat), str(lng)]
     print("• Setting location -> %.6f, %.6f" % (lat, lng))
-    run(cmd)
+    run(sim_set_cmd(udid, version, args.rsd, lat, lng))
     print("✓ Location set. It stays until you run `clear` (or the tunnel stops).")
 
 
@@ -243,30 +287,7 @@ def cmd_hold(args):
     udid, version = dev
     lat, lng = resolve_coords(args)
     ensure_developer_ready(udid, version)
-    extra = tunnel_args(udid, version, args.rsd)
-    set_cmd = pmd_cmd() + ["developer", "simulate-location", "set"] + extra + ["--", str(lat), str(lng)]
-    clr_cmd = pmd_cmd() + ["developer", "simulate-location", "clear"] + extra
-
-    stop = {"flag": False}
-    def _sig(*_):
-        stop["flag"] = True
-    signal.signal(signal.SIGINT, _sig)
-    signal.signal(signal.SIGTERM, _sig)
-
-    print("• Pinning location -> %.6f, %.6f" % (lat, lng))
-    print("  Keep this running. Press Ctrl+C to stop and restore real GPS.")
-    interval = max(5, int(args.interval))
-    try:
-        while not stop["flag"]:
-            run(set_cmd, check=False)
-            for _ in range(interval):
-                if stop["flag"]:
-                    break
-                time.sleep(1)
-    finally:
-        print("\n• Restoring real location…")
-        run(clr_cmd, check=False)
-        print("✓ Cleared.")
+    hold_loop(udid, version, args.rsd, lat, lng, args.interval)
 
 
 def cmd_route(args):
@@ -275,7 +296,6 @@ def cmd_route(args):
         sys.exit("error: no device connected (run: status).")
     udid, version = dev
     ensure_developer_ready(udid, version)
-    extra = tunnel_args(udid, version, args.rsd)
 
     if args.gpx:
         gpx_path = args.gpx
@@ -287,8 +307,7 @@ def cmd_route(args):
         end = tuple(float(x) for x in args.to.split(","))
         gpx_path, dist, steps = make_gpx(start, end, float(args.speed))
         print("• Route %.0f m at %.1f m/s (%d points)" % (dist, float(args.speed), steps))
-    cmd = pmd_cmd() + ["developer", "simulate-location", "play"] + extra + [gpx_path]
-    run(cmd)
+    run(sim_play_cmd(udid, version, args.rsd, gpx_path))
     print("✓ Route finished.")
 
 
@@ -297,9 +316,7 @@ def cmd_clear(args):
     if not dev:
         sys.exit("error: no device connected.")
     udid, version = dev
-    extra = tunnel_args(udid, version, args.rsd)
-    cmd = pmd_cmd() + ["developer", "simulate-location", "clear"] + extra
-    run(cmd, check=False)
+    run(sim_clear_cmd(udid, version, args.rsd), check=False)
     print("✓ Real location restored.")
 
 
@@ -310,8 +327,122 @@ def cmd_search(args):
 
 def cmd_tunnel(args):
     """Convenience wrapper for `pymobiledevice3 remote tunneld` (iOS 17+)."""
-    print("• Starting tunneld (requires root). Keep this terminal open.")
+    print("• Starting tunneld (requires root/Administrator). Keep this window open.")
     run(pmd_cmd() + ["remote", "tunneld"], check=False)
+
+
+# ---------------------------------------------------------------------------
+# Interactive menu (double-click friendly)
+# ---------------------------------------------------------------------------
+
+def _pause():
+    try:
+        input("\nPress Enter to close…")
+    except (EOFError, KeyboardInterrupt):
+        pass
+
+
+def _parse_coords(raw):
+    parts = raw.replace(" ", "").split(",")
+    if len(parts) == 2:
+        try:
+            return float(parts[0]), float(parts[1])
+        except ValueError:
+            return None
+    return None
+
+
+def _prompt_coords(label=""):
+    tag = (" (%s)" % label) if label else ""
+    raw = input("Enter a place name, or 'lat,lng'%s: " % tag).strip()
+    if not raw:
+        return None
+    coords = _parse_coords(raw)
+    if coords:
+        return coords
+    try:
+        lat, lng, name = geocode(raw)
+        print("  -> %s\n     %.6f, %.6f" % (name, lat, lng))
+        return lat, lng
+    except SystemExit:
+        print("  Could not look up that name (network?). Type coordinates as 'lat,lng'.")
+        return None
+
+
+def cmd_menu(_):
+    print("=" * 50)
+    print("   wer9loc — iPhone location controller")
+    print("=" * 50)
+    dev = find_device()
+    if not dev:
+        print("\nNo iPhone detected over USB.")
+        print("  1) Connect the iPhone with a USB cable.")
+        print("  2) Unlock it and tap 'Trust This Computer'.")
+        print("  3) Windows: install Apple Mobile Device Support (comes with iTunes).")
+        print("     Linux:   sudo apt install usbmuxd")
+        _pause()
+        return
+    udid, version = dev
+    print("\nConnected:  iOS %s   (UDID %s)" % (version, udid))
+
+    if version_ge(version, 17):
+        print("\n[iOS 17+] A tunnel must already be running in a SEPARATE window:")
+        print("   Windows:      double-click  wer9loc-tunnel.bat  (allow Administrator)")
+        print("   macOS/Linux:  sudo python3 wer9loc.py tunnel")
+        print("Also enable:  Settings > Privacy & Security > Developer Mode.")
+        ans = input("\nIs the tunnel running now? [y/N]: ").strip().lower()
+        if ans not in ("y", "yes"):
+            print("→ Start the tunnel first, then run this again.")
+            _pause()
+            return
+
+    while True:
+        print("\n--- Menu ---")
+        print("  1) Set / pin a location")
+        print("  2) Simulate a moving route")
+        print("  3) Stop and restore the real location")
+        print("  4) Quit")
+        choice = input("Choose [1-4]: ").strip()
+
+        if choice == "1":
+            coords = _prompt_coords()
+            if not coords:
+                continue
+            lat, lng = coords
+            ensure_developer_ready(udid, version)
+            keep = input("Keep it pinned until you stop it? [Y/n]: ").strip().lower()
+            if keep in ("", "y", "yes"):
+                print("(This will hold the location. Press Ctrl+C to stop.)")
+                hold_loop(udid, version, None, lat, lng, 15)
+            else:
+                run(sim_set_cmd(udid, version, None, lat, lng), check=False)
+                print("✓ Location set (until you choose 3 to stop).")
+
+        elif choice == "2":
+            a = _prompt_coords("START")
+            if not a:
+                continue
+            b = _prompt_coords("END")
+            if not b:
+                continue
+            try:
+                speed = float(input("Speed in m/s [5]: ").strip() or "5")
+            except ValueError:
+                speed = 5.0
+            ensure_developer_ready(udid, version)
+            gpx_path, dist, steps = make_gpx(a, b, speed)
+            print("• Route %.0f m at %.1f m/s (%d points)…" % (dist, speed, steps))
+            run(sim_play_cmd(udid, version, None, gpx_path), check=False)
+            print("✓ Route finished.")
+
+        elif choice == "3":
+            run(sim_clear_cmd(udid, version, None), check=False)
+            print("✓ Real location restored.")
+
+        elif choice == "4":
+            break
+        else:
+            print("Invalid choice.")
 
 
 # ---------------------------------------------------------------------------
@@ -368,7 +499,11 @@ def build_parser():
 
 
 def main():
-    args = build_parser().parse_args()
+    argv = sys.argv[1:]
+    if not argv:
+        # No arguments → launch the friendly interactive menu.
+        return cmd_menu(None)
+    args = build_parser().parse_args(argv)
     args.func(args)
 
 
