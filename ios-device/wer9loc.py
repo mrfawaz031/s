@@ -204,19 +204,47 @@ def make_gpx(start, end, speed_ms):
 # Simulate-location command builders (shared by all commands)
 # ---------------------------------------------------------------------------
 
+def _sim_group(version):
+    """iOS 17+ uses the DVT instruments channel (Apple removed the old lockdown
+    service). Older iOS keeps the classic developer service."""
+    if version_ge(version, 17):
+        return ["developer", "dvt", "simulate-location"]
+    return ["developer", "simulate-location"]
+
+
 def sim_set_cmd(udid, version, rsd, lat, lng):
-    return pmd_cmd() + ["developer", "simulate-location", "set"] + \
+    return pmd_cmd() + _sim_group(version) + ["set"] + \
         tunnel_args(udid, version, rsd) + ["--", str(lat), str(lng)]
 
 
 def sim_clear_cmd(udid, version, rsd):
-    return pmd_cmd() + ["developer", "simulate-location", "clear"] + \
+    return pmd_cmd() + _sim_group(version) + ["clear"] + \
         tunnel_args(udid, version, rsd)
 
 
 def sim_play_cmd(udid, version, rsd, gpx_path):
-    return pmd_cmd() + ["developer", "simulate-location", "play"] + \
-        tunnel_args(udid, version, rsd) + [gpx_path]
+    # timing_randomness_range (0) is required by the CLI's play command.
+    return pmd_cmd() + _sim_group(version) + ["play"] + \
+        tunnel_args(udid, version, rsd) + [gpx_path, "0"]
+
+
+def pin_location(udid, version, rsd, lat, lng, interval=15):
+    """Set the location and hold it until interrupted, then restore real GPS.
+
+    iOS 17+: the DVT `set` command sets the location and then blocks (holds)
+    until Enter/Ctrl+C — closing it restores real GPS. iOS <17: re-assert in a
+    loop (the old service returns immediately)."""
+    if version_ge(version, 17):
+        print("• Location set -> %.6f, %.6f" % (lat, lng))
+        print("  Keep this window OPEN. Press ENTER or Ctrl+C here to stop and restore real GPS.")
+        try:
+            run(sim_set_cmd(udid, version, rsd, lat, lng), check=False)
+        except KeyboardInterrupt:
+            pass
+        run(sim_clear_cmd(udid, version, rsd), check=False)
+        print("✓ Restored real location.")
+    else:
+        hold_loop(udid, version, rsd, lat, lng, interval)
 
 
 def hold_loop(udid, version, rsd, lat, lng, interval):
@@ -275,9 +303,13 @@ def cmd_set(args):
     udid, version = dev
     lat, lng = resolve_coords(args)
     ensure_developer_ready(udid, version)
-    print("• Setting location -> %.6f, %.6f" % (lat, lng))
-    run(sim_set_cmd(udid, version, args.rsd, lat, lng))
-    print("✓ Location set. It stays until you run `clear` (or the tunnel stops).")
+    if version_ge(version, 17):
+        # On iOS 17+ the location holds only while the DVT session runs.
+        pin_location(udid, version, args.rsd, lat, lng)
+    else:
+        print("• Setting location -> %.6f, %.6f" % (lat, lng))
+        run(sim_set_cmd(udid, version, args.rsd, lat, lng))
+        print("✓ Location set. It stays until you run `clear`.")
 
 
 def cmd_hold(args):
@@ -287,7 +319,7 @@ def cmd_hold(args):
     udid, version = dev
     lat, lng = resolve_coords(args)
     ensure_developer_ready(udid, version)
-    hold_loop(udid, version, args.rsd, lat, lng, args.interval)
+    pin_location(udid, version, args.rsd, lat, lng, args.interval)
 
 
 def cmd_route(args):
@@ -410,13 +442,9 @@ def cmd_menu(_):
                 continue
             lat, lng = coords
             ensure_developer_ready(udid, version)
-            keep = input("Keep it pinned until you stop it? [Y/n]: ").strip().lower()
-            if keep in ("", "y", "yes"):
-                print("(This will hold the location. Press Ctrl+C to stop.)")
-                hold_loop(udid, version, None, lat, lng, 15)
-            else:
-                run(sim_set_cmd(udid, version, None, lat, lng), check=False)
-                print("✓ Location set (until you choose 3 to stop).")
+            # pin_location holds the location until you press Enter/Ctrl+C,
+            # then restores the real GPS.
+            pin_location(udid, version, None, lat, lng, 15)
 
         elif choice == "2":
             a = _prompt_coords("START")
