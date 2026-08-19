@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="../vendor/leaflet/leaflet.css" />
+    <link rel="stylesheet" href="popup.css" />
+    <title>GeoSet</title>
+  </head>
+  <body>
+    <header class="bar">
+      <div class="brand">
+        <span class="pin" aria-hidden="true"></span>
+        <span class="title">GeoSet</span>
+      </div>
+      <label class="switch" title="Enable / disable override">
+        <input type="checkbox" id="enabled" />
+        <span class="slider"></span>
+      </label>
+    </header>
+
+    <div class="search">
+      <input id="q" type="text" placeholder="Search a place (city, address, landmark)…" autocomplete="off" />
+      <button id="go" type="button">Search</button>
+    </div>
+    <ul id="results" class="results" hidden></ul>
+
+    <div id="map"></div>
+
+    <div class="coords">
+      <label>Lat <input id="lat" type="number" step="0.000001" /></label>
+      <label>Lng <input id="lng" type="number" step="0.000001" /></label>
+    </div>
+
+    <div class="acc">
+      <label for="accuracy">Accuracy <span id="accVal">20</span> m</label>
+      <input id="accuracy" type="range" min="3" max="200" step="1" value="20" />
+    </div>
+
+    <div class="presets">
+      <button data-lat="40.7128" data-lng="-74.0060" type="button">New York</button>
+      <button data-lat="51.5074" data-lng="-0.1278" type="button">London</button>
+      <button data-lat="35.6895" data-lng="139.6917" type="button">Tokyo</button>
+      <button data-lat="25.2048" data-lng="55.2708" type="button">Dubai</button>
+      <button id="myLoc" type="button" title="Use your real current location as the starting point">My location</button>
+    </div>
+
+    <div class="statusrow">
+      <span id="status" class="status off">Override is OFF</span>
+      <button id="reset" class="link" type="button">Reset drift</button>
+    </div>
+
+    <p class="note">
+      Applies to <b>this browser only</b>. Reload the target tab after enabling.
+      No tool is truly “undetectable”: sites can cross-check IP, Wi-Fi and sensors.
+    </p>
+
+    <script src="../vendor/leaflet/leaflet.js"></script>
+    <script src="popup.js"></script>
+  </body>
+</html>

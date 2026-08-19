@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>GeoSet — self test</title>
+    <style>
+      body { font-family: system-ui, sans-serif; max-width: 640px; margin: 40px auto; padding: 0 16px; }
+      button { padding: 10px 16px; font-size: 15px; cursor: pointer; }
+      pre { background: #f4f4f8; padding: 12px; border-radius: 8px; white-space: pre-wrap; }
+      .ok { color: #16a34a; } .err { color: #dc2626; }
+    </style>
+  </head>
+  <body>
+    <h1>GeoSet — self test</h1>
+    <p>Enable the override in the extension popup, reload this page, then click:</p>
+    <p>
+      <button id="once">getCurrentPosition</button>
+      <button id="watch">watchPosition</button>
+      <button id="stop">stop watch</button>
+    </p>
+    <pre id="out">(no reading yet)</pre>
+    <script>
+      const out = document.getElementById("out");
+      let id = null;
+      function show(pos) {
+        const c = pos.coords;
+        out.innerHTML =
+          '<span class="ok">OK</span>\n' +
+          "lat: " + c.latitude.toFixed(6) + "\n" +
+          "lng: " + c.longitude.toFixed(6) + "\n" +
+          "accuracy: " + c.accuracy + " m\n" +
+          "time: " + new Date(pos.timestamp).toLocaleTimeString();
+      }
+      function fail(e) {
+        out.innerHTML = '<span class="err">ERROR ' + e.code + "</span>\n" + e.message;
+      }
+      document.getElementById("once").onclick = () =>
+        navigator.geolocation.getCurrentPosition(show, fail, { enableHighAccuracy: true });
+      document.getElementById("watch").onclick = () => {
+        if (id !== null) navigator.geolocation.clearWatch(id);
+        id = navigator.geolocation.watchPosition(show, fail);
+      };
+      document.getElementById("stop").onclick = () => {
+        if (id !== null) navigator.geolocation.clearWatch(id);
+        out.textContent = "watch stopped";
+      };
+    </script>
+  </body>
+</html>
