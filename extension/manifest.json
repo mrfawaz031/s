@@ -1,13 +1,13 @@
 {
   "manifest_version": 3,
-  "name": "GeoSet — Location Override",
-  "version": "1.0.0",
-  "description": "Override your browser's Geolocation to a location you pick on a map. For web development, testing, and privacy on your own device.",
+  "name": "wer9store — Location Override",
+  "version": "1.1.0",
+  "description": "Pick any point on a map and your browser reports it as your location — with a persistent lock, saved places, and realistic motion. For development, testing, and privacy on your own device.",
   "permissions": ["storage", "tabs"],
   "host_permissions": ["<all_urls>"],
   "action": {
     "default_popup": "src/popup.html",
-    "default_title": "GeoSet — Location Override",
+    "default_title": "wer9store — Location Override",
     "default_icon": {
       "16": "icons/icon16.png",
       "32": "icons/icon32.png",
@@ -36,5 +36,8 @@
       "world": "ISOLATED",
       "all_frames": true
     }
-  ]
+  ],
+  "browser_specific_settings": {
+    "gecko": { "id": "wer9store@local.extension" }
+  }
 }

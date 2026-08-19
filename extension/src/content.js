@@ -1,17 +1,20 @@
 /*
  * content.js — runs in the extension's ISOLATED world at document_start.
- *
- * Bridges chrome.storage (only reachable here) to inject.js (which lives in
- * the page's MAIN world and does the actual Geolocation override). Talks to
- * inject.js over window.postMessage.
+ * Bridges chrome.storage (only reachable here) to inject.js (MAIN world).
  */
 (function () {
   "use strict";
-  const KEY = "geoSetConfig";
-  const DEFAULT = { enabled: false, lat: 0, lng: 0, accuracy: 20 };
+  const KEY = "wer9Config";
+  const DEFAULT = {
+    enabled: false,
+    lat: 0,
+    lng: 0,
+    accuracy: 20,
+    motion: { enabled: false, speed: 0, heading: 0 },
+  };
 
   function send(cfg) {
-    window.postMessage({ __geoSet: "config", payload: cfg || DEFAULT }, "*");
+    window.postMessage({ __wer9: "config", payload: cfg || DEFAULT }, "*");
   }
 
   function load() {
@@ -24,15 +27,13 @@
     }
   }
 
-  // MAIN world asks for config as soon as inject.js loads.
   window.addEventListener("message", function (ev) {
     if (ev.source !== window) return;
     const d = ev.data;
-    if (!d || d.__geoSet !== "request") return;
+    if (!d || d.__wer9 !== "request") return;
     load();
   });
 
-  // Push live updates when the popup changes settings.
   try {
     chrome.storage.onChanged.addListener(function (changes, area) {
       if (area === "local" && changes[KEY]) {
@@ -41,6 +42,5 @@
     });
   } catch (e) {}
 
-  // Also send once proactively in case inject.js's request raced ahead.
   load();
 })();

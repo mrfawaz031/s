@@ -5,19 +5,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="stylesheet" href="../vendor/leaflet/leaflet.css" />
     <link rel="stylesheet" href="popup.css" />
-    <title>GeoSet</title>
+    <title>wer9store</title>
   </head>
   <body>
     <header class="bar">
       <div class="brand">
         <span class="pin" aria-hidden="true"></span>
-        <span class="title">GeoSet</span>
+        <span class="title">wer9store</span>
       </div>
       <label class="switch" title="Enable / disable override">
         <input type="checkbox" id="enabled" />
         <span class="slider"></span>
       </label>
     </header>
+
+    <div id="lockBadge" class="lock off">
+      <span class="dot"></span>
+      <span id="lockText">Override OFF — real location in use</span>
+    </div>
 
     <div class="search">
       <input id="q" type="text" placeholder="Search a place (city, address, landmark)…" autocomplete="off" />
@@ -30,6 +35,7 @@
     <div class="coords">
       <label>Lat <input id="lat" type="number" step="0.000001" /></label>
       <label>Lng <input id="lng" type="number" step="0.000001" /></label>
+      <button id="copy" class="mini" type="button" title="Copy coordinates">⧉</button>
     </div>
 
     <div class="acc">
@@ -37,22 +43,55 @@
       <input id="accuracy" type="range" min="3" max="200" step="1" value="20" />
     </div>
 
+    <!-- Motion simulation -->
+    <details class="sect">
+      <summary>🚶 Motion simulation <span id="motionState" class="tag">off</span></summary>
+      <div class="sect-body">
+        <label class="row">
+          <span>Simulate movement</span>
+          <label class="switch sm"><input type="checkbox" id="motionOn" /><span class="slider"></span></label>
+        </label>
+        <label class="field">Speed <span id="speedVal">5</span> km/h
+          <input id="speed" type="range" min="0" max="120" step="1" value="5" />
+        </label>
+        <label class="field">Heading <span id="headVal">0</span>°
+          <input id="heading" type="range" min="0" max="359" step="1" value="0" />
+        </label>
+        <p class="hint">The point moves along the heading at the chosen speed and reports real <code>heading</code>/<code>speed</code> to route-tracking apps.</p>
+      </div>
+    </details>
+
+    <!-- Saved places -->
+    <details class="sect">
+      <summary>⭐ Saved places <span id="savedCount" class="tag">0</span></summary>
+      <div class="sect-body">
+        <div class="saverow">
+          <input id="saveName" type="text" placeholder="Name this spot…" />
+          <button id="saveBtn" type="button">Save</button>
+        </div>
+        <ul id="savedList" class="saved"></ul>
+      </div>
+    </details>
+
     <div class="presets">
       <button data-lat="40.7128" data-lng="-74.0060" type="button">New York</button>
       <button data-lat="51.5074" data-lng="-0.1278" type="button">London</button>
       <button data-lat="35.6895" data-lng="139.6917" type="button">Tokyo</button>
       <button data-lat="25.2048" data-lng="55.2708" type="button">Dubai</button>
-      <button id="myLoc" type="button" title="Use your real current location as the starting point">My location</button>
+      <button id="myLoc" type="button" title="Use your real current location">My location</button>
     </div>
 
-    <div class="statusrow">
-      <span id="status" class="status off">Override is OFF</span>
+    <div class="footerrow">
+      <button id="export" class="link" type="button">Export</button>
+      <button id="import" class="link" type="button">Import</button>
+      <input id="importFile" type="file" accept="application/json" hidden />
       <button id="reset" class="link" type="button">Reset drift</button>
     </div>
 
     <p class="note">
-      Applies to <b>this browser only</b>. Reload the target tab after enabling.
-      No tool is truly “undetectable”: sites can cross-check IP, Wi-Fi and sensors.
+      Applies to <b>this browser only</b> and stays locked until you turn it OFF
+      (survives reloads &amp; restarts). No tool is truly “undetectable”: sites can
+      cross-check IP, Wi-Fi &amp; sensors — pair with a VPN in the same region.
     </p>
 
     <script src="../vendor/leaflet/leaflet.js"></script>

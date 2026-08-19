@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>GeoSet — self test</title>
+    <title>wer9store — self test</title>
     <style>
       body { font-family: system-ui, sans-serif; max-width: 640px; margin: 40px auto; padding: 0 16px; }
       button { padding: 10px 16px; font-size: 15px; cursor: pointer; }
@@ -11,7 +11,7 @@
     </style>
   </head>
   <body>
-    <h1>GeoSet — self test</h1>
+    <h1>wer9store — self test</h1>
     <p>Enable the override in the extension popup, reload this page, then click:</p>
     <p>
       <button id="once">getCurrentPosition</button>
@@ -29,6 +29,8 @@
           "lat: " + c.latitude.toFixed(6) + "\n" +
           "lng: " + c.longitude.toFixed(6) + "\n" +
           "accuracy: " + c.accuracy + " m\n" +
+          "heading: " + (c.heading === null ? "—" : c.heading + "°") + "\n" +
+          "speed: " + (c.speed === null ? "—" : c.speed.toFixed(1) + " m/s") + "\n" +
           "time: " + new Date(pos.timestamp).toLocaleTimeString();
       }
       function fail(e) {
